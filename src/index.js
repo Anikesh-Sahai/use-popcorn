@@ -15,16 +15,15 @@ function Test() {
 }
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(
-  // <App />
-  <>
-    <StarRating maxRating={10} size={50} />
-    <StarRating
-      maxRating={3}
-      messages={["okay", "good", "nice"]}
-      color="red"
-      size={15}
-    />
-    <Test />
-  </>
-);
+root.render(<App />);
+
+// <>
+//   <StarRating maxRating={10} size={50} />
+//   <StarRating
+//     maxRating={3}
+//     messages={["okay", "good", "nice"]}
+//     color="red"
+//     size={15}
+//   />
+//   <Test />
+// </>
