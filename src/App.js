@@ -55,11 +55,16 @@ const KEY = "316b0ed0";
 
 export default function App() {
   const [movies, setMovies] = useState([]);
-  const [watched, setWatched] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [selectedId, SetSelectedId] = useState(null);
+  // const [watched, setWatched] = useState([]);
+  // we can also pass the call back function in the usestate and it will on the the time on the app mount this process is also called lazy evaluation
+  const [watched, setWatched] = useState(function () {
+    const storedValue = localStorage.getItem("watched");
+    return JSON.parse(storedValue);
+  });
 
   function handelSelectMovie(id) {
     SetSelectedId((selectedId) => (id === selectedId ? null : id));
@@ -76,6 +81,13 @@ export default function App() {
   function handelDeleteWatched(id) {
     setWatched((watched) => watched.filter((movie) => movie.imdbID !== id));
   }
+
+  useEffect(
+    function () {
+      localStorage.setItem("watched", JSON.stringify(watched));
+    },
+    [watched]
+  );
 
   useEffect(
     function () {
