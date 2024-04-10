@@ -1,23 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import StarRating from "./StarRating";
+import { useMovies } from "./useMovies";
+import { useLocalStorageState } from "./useLocalStorageState";
+import { useKey } from "./useKey";
+
+const KEY = "316b0ed0";
 
 const average = (arr) =>
   arr.reduce((acc, cur, i, arr) => acc + cur / arr.length, 0);
 
-const KEY = "316b0ed0";
-
 export default function App() {
-  const [movies, setMovies] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [selectedId, SetSelectedId] = useState(null);
-  // const [watched, setWatched] = useState([]);
-  // we can also pass the call back function in the usestate and it will on the the time on the app mount this process is also called lazy evaluation
-  const [watched, setWatched] = useState(function () {
-    const storedValue = localStorage.getItem("watched");
-    return JSON.parse(storedValue) || [];
-  });
+  const { movies, isLoading, error } = useMovies(query, handelCloseMovie);
+  const [watched, setWatched] = useLocalStorageState([], "watched");
 
   function handelSelectMovie(id) {
     SetSelectedId((selectedId) => (id === selectedId ? null : id));
@@ -35,53 +31,6 @@ export default function App() {
     setWatched((watched) => watched.filter((movie) => movie.imdbID !== id));
   }
 
-  useEffect(
-    function () {
-      localStorage.setItem("watched", JSON.stringify(watched));
-    },
-    [watched]
-  );
-
-  useEffect(
-    function () {
-      const controller = new AbortController();
-      async function fetchMovies() {
-        try {
-          setIsLoading(true);
-          setError("");
-          const res = await fetch(
-            `http://www.omdbapi.com/?apikey=${KEY}&s=${query}`,
-            { signal: controller.signal }
-          );
-          if (!res.ok)
-            throw new Error("Something Went Wrong while fetching the movies");
-          const data = await res.json();
-          if (data.Response === "False") throw new Error("movie Not Found");
-          setMovies(data.Search);
-          setError("");
-        } catch (err) {
-          if (err.name !== "AbortError") {
-            console.log(err.message);
-            setError(err.message);
-          }
-        } finally {
-          setIsLoading(false);
-        }
-      }
-      if (query.length < 3) {
-        setMovies([]);
-        setError("");
-        return;
-      }
-
-      fetchMovies();
-
-      return function () {
-        controller.abort();
-      };
-    },
-    [query]
-  );
   // blank array pass is used to rerender the component if we pass any variable in array and if that variable changes component Rerender
 
   return (
@@ -163,27 +112,13 @@ function NumResults({ movies }) {
 function Search({ query, setQuery }) {
   // it remains constant around multiple renders it just conatainer that holds some thing
 
-  const inputEle = useRef(null)
+  const inputEle = useRef(null);
 
-  useEffect(function(){
-
-    
-    function callback(e){
-      if(e.code === "Enter"){
-        
-        if(document.activeElement === inputEle.current) return
-
-
-        inputEle.current.focus()
-        setQuery("")
-      }
-    }
-
-    document.addEventListener("keydown", callback)
-
-    return ()=>document.removeEventListener("keydown", callback)
-
-  },[setQuery])
+  useKey("enter", function () {
+    if (document.activeElement === inputEle.current) return;
+    inputEle.current.focus();
+    setQuery("");
+  });
 
   return (
     <input
@@ -246,11 +181,14 @@ function MovieDetails({ selectedId, onCloseMovie, onAddWatched, watched }) {
   const [movie, setMovie] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [userRating, setUserRating] = useState("");
-  const countRef = useRef(0)
+  const countRef = useRef(0);
 
-  useEffect(function (){
-    if(userRating) countRef.current++
-  },[userRating])
+  useEffect(
+    function () {
+      if (userRating) countRef.current++;
+    },
+    [userRating]
+  );
 
   const isWatched = watched.map((movie) => movie.imdbID).includes(selectedId);
 
@@ -271,23 +209,7 @@ function MovieDetails({ selectedId, onCloseMovie, onAddWatched, watched }) {
     Genre: genre,
   } = movie;
 
-  useEffect(
-    function () {
-      function callback(e) {
-        if (e.code === "Escape") {
-          onCloseMovie();
-        }
-      }
-
-      document.addEventListener("keydown", callback);
-
-      // here cleaning up this function is important because every time this movie component render the new EventListener is added
-      return function () {
-        document.removeEventListener("keydown", callback);
-      };
-    },
-    [onCloseMovie]
-  );
+  useKey("escape", onCloseMovie);
 
   useEffect(
     function () {
@@ -327,7 +249,7 @@ function MovieDetails({ selectedId, onCloseMovie, onAddWatched, watched }) {
       imdbRating: Number(imdbRating),
       runtime: Number(runtime.split(" ").at(0)),
       userRating,
-      countRatingDescisions: countRef.current
+      countRatingDescisions: countRef.current,
     };
 
     onAddWatched(newWatchedMovie);
@@ -424,19 +346,15 @@ function WatchedMoviesList({ watched, onDeleteWatched }) {
   return (
     <ul className="list">
       {watched.map((movie) => (
-        <WatchedMovie
-          movie={movie}
-          key={movie.imdbID}
-          onDeleteWatched={onDeleteWatched}
-        />
+        <WatchedMovie movie={movie} onDeleteWatched={onDeleteWatched} />
       ))}
     </ul>
   );
 }
 
-function WatchedMovie({ movie, key, onDeleteWatched }) {
+function WatchedMovie({ movie, onDeleteWatched }) {
   return (
-    <li key={key}>
+    <li key={movie.imdbID}>
       <img src={movie.poster} alt={`${movie.title} poster`} />
       <h3>{movie.title}</h3>
       <div>
